@@ -36,6 +36,9 @@ import com.example.bankimukhonde.ui.components.ConfirmDeleteDialog
 import com.example.bankimukhonde.ui.components.EditDialog
 import com.example.bankimukhonde.ui.components.RecordActionDialog
 import com.example.bankimukhonde.ui.components.StatCard
+import com.example.bankimukhonde.data.isValidDate
+import com.example.bankimukhonde.data.todayString
+import com.example.bankimukhonde.ui.components.AppDateField
 
 @Composable
 fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan: () -> Unit) {
@@ -67,7 +70,7 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
                         amount <= 0.0 -> "Loan amount must be greater than zero"
                         rate == null -> "Enter the interest rate as a number"
                         rate < 0.0 -> "Interest rate cannot be negative"
-                        v[2].isBlank() -> "Enter the date"
+                        !isValidDate(v[2].trim()) -> "Enter the date as YYYY-MM-DD (e.g. 2026-10-24)"
                         term == null || term < 0 || term > 120 -> "Term must be a whole number from 0 to 120"
                         amount + amount * rate / 100 < alreadyRepaid - 0.001 ->
                             "The new total is less than the ${money(alreadyRepaid)} already repaid"
@@ -133,7 +136,7 @@ fun IssueLoanScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> U
     var amount by remember { mutableStateOf("") }
     var interestRate by remember { mutableStateOf("") }
     var termMonths by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf(todayString()) }
     var errorMessage by remember { mutableStateOf("") }
 
     AppScaffold(title = "Issue Loan", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
@@ -158,7 +161,7 @@ fun IssueLoanScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> U
                 AppTextField(value = amount, onValueChange = { amount = it }, label = "Loan Amount")
                 AppTextField(value = interestRate, onValueChange = { interestRate = it }, label = "Interest Rate (%)")
                 AppTextField(value = termMonths, onValueChange = { termMonths = it }, label = "Repayment Term (months)")
-                AppTextField(value = date, onValueChange = { date = it }, label = "Date Issued (e.g. 2026-10-24)", leadingIcon = Icons.Default.CalendarMonth)
+                AppDateField(value = date, onValueChange = { date = it }, label = "Date Issued")
 
                 val previewAmount = amount.trim().toDoubleOrNull()
                 val previewRate = interestRate.trim().toDoubleOrNull()
@@ -183,10 +186,10 @@ fun IssueLoanScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> U
                         rateValue < 0.0 -> errorMessage = "Interest rate cannot be negative"
                         termValue == null -> errorMessage = "Enter the term as a whole number of months"
                         termValue < 1 || termValue > 120 -> errorMessage = "Term must be between 1 and 120 months"
-                        date.isBlank() -> errorMessage = "Enter the date"
+                        !isValidDate(date) -> errorMessage = "Pick a valid date"
                         else -> {
                             errorMessage = ""
-                            viewModel.issueLoan(selectedMember!!.id, amountValue, rateValue, date.trim(), termValue)
+                            viewModel.issueLoan(selectedMember!!.id, amountValue, rateValue, date, termValue)
                             onDone()
                         }
                     }
@@ -260,7 +263,7 @@ fun RepaymentsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onReco
 fun RecordRepaymentScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> Unit) {
     var selectedLoan by remember { mutableStateOf<Loan?>(null) }
     var amount by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf(todayString()) }
     var errorMessage by remember { mutableStateOf("") }
 
     AppScaffold(title = "Record Repayment", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
@@ -284,7 +287,7 @@ fun RecordRepaymentScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: (
                 val loan = selectedLoan!!
                 Text(text = "Outstanding balance: ${money(loan.outstandingBalance)}", style = MaterialTheme.typography.titleMedium)
                 AppTextField(value = amount, onValueChange = { amount = it }, label = "Repayment Amount")
-                AppTextField(value = date, onValueChange = { date = it }, label = "Date (e.g. 2026-10-24)")
+                AppDateField(value = date, onValueChange = { date = it }, label = "Date")
 
                 if (errorMessage.isNotEmpty()) {
                     Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
@@ -297,10 +300,10 @@ fun RecordRepaymentScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: (
                         amountValue <= 0.0 -> errorMessage = "Amount must be greater than zero"
                         amountValue > loan.outstandingBalance + 0.001 ->
                             errorMessage = "Amount is more than the outstanding balance (${money(loan.outstandingBalance)})"
-                        date.isBlank() -> errorMessage = "Enter the date"
+                        !isValidDate(date) -> errorMessage = "Pick a valid date"
                         else -> {
                             errorMessage = ""
-                            viewModel.recordRepayment(loan.id, amountValue, date.trim())
+                            viewModel.recordRepayment(loan.id, amountValue, date)
                             onDone()
                         }
                     }

@@ -41,6 +41,12 @@ import com.example.bankimukhonde.ui.components.EditDialog
 import com.example.bankimukhonde.ui.components.StatCard
 import com.example.bankimukhonde.data.money
 import com.example.bankimukhonde.data.plain
+import com.example.bankimukhonde.data.isValidDate
+import com.example.bankimukhonde.data.phoneError
+import com.example.bankimukhonde.data.todayString
+import com.example.bankimukhonde.ui.components.AppDateField
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 
 @Composable
 fun MemberListScreen(
@@ -109,7 +115,8 @@ fun MemberListScreen(
 fun AddMemberScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> Unit) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    var dateJoined by remember { mutableStateOf("") }
+    var dateJoined by remember { mutableStateOf(todayString()) }
+    var errorMessage by remember { mutableStateOf("") }
 
     AppScaffold(title = "Register Member", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
         Column(
@@ -117,13 +124,23 @@ fun AddMemberScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> U
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AppTextField(value = name, onValueChange = { name = it }, label = "Full Name", leadingIcon = Icons.Default.Person)
-            AppTextField(value = phone, onValueChange = { phone = it }, label = "Phone Number", leadingIcon = Icons.Default.Phone)
-            AppTextField(value = dateJoined, onValueChange = { dateJoined = it }, label = "Date Joined", leadingIcon = Icons.Default.CalendarMonth)
+            AppTextField(value = phone, onValueChange = { phone = it }, label = "Phone Number (e.g. 0999123456)", leadingIcon = Icons.Default.Phone)
+            AppDateField(value = dateJoined, onValueChange = { dateJoined = it }, label = "Date Joined")
+
+            if (errorMessage.isNotEmpty()) {
+                Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+            }
 
             AppButton(text = "Save") {
-                if (name.isNotBlank()) {
-                    viewModel.addMember(name.trim(), phone.trim(), dateJoined.trim())
-                    onDone()
+                when {
+                    name.isBlank() -> errorMessage = "Please enter the member's name"
+                    phoneError(phone) != null -> errorMessage = phoneError(phone) ?: ""
+                    !isValidDate(dateJoined) -> errorMessage = "Pick a valid date"
+                    else -> {
+                        errorMessage = ""
+                        viewModel.addMember(name.trim(), phone.trim(), dateJoined)
+                        onDone()
+                    }
                 }
             }
         }
@@ -143,7 +160,14 @@ fun MemberDetailScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             title = "Edit Member",
             labels = listOf("Full Name", "Phone Number", "Date Joined"),
             initialValues = listOf(member.name, member.phone, member.dateJoined),
-            validate = { v -> if (v[0].isBlank()) "Name cannot be empty" else null },
+            validate = { v ->
+                when {
+                    v[0].isBlank() -> "Name cannot be empty"
+                    phoneError(v[1]) != null -> phoneError(v[1])
+                    v[2].isNotBlank() && !isValidDate(v[2].trim()) -> "Date must be YYYY-MM-DD (e.g. 2026-10-24), or leave it empty"
+                    else -> null
+                }
+            },
             onSave = { v ->
                 viewModel.updateMember(member, v[0].trim(), v[1].trim(), v[2].trim())
                 editing = false

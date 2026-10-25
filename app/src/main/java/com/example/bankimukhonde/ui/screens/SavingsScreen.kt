@@ -31,6 +31,9 @@ import com.example.bankimukhonde.ui.components.ConfirmDeleteDialog
 import com.example.bankimukhonde.ui.components.EditDialog
 import com.example.bankimukhonde.ui.components.RecordActionDialog
 import com.example.bankimukhonde.ui.components.StatCard
+import com.example.bankimukhonde.data.isValidDate
+import com.example.bankimukhonde.data.todayString
+import com.example.bankimukhonde.ui.components.AppDateField
 
 @Composable
 fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordContribution: () -> Unit) {
@@ -56,7 +59,7 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
                     when {
                         amount == null -> "Enter the amount as a number"
                         amount <= 0.0 -> "Amount must be greater than zero"
-                        v[1].isBlank() -> "Enter the date"
+                        !isValidDate(v[1].trim()) -> "Enter the date as YYYY-MM-DD (e.g. 2026-10-24)"
                         else -> null
                     }
                 },
@@ -112,7 +115,7 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
 fun RecordSavingsScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> Unit) {
     var selectedMember by remember { mutableStateOf<Member?>(null) }
     var amount by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf(todayString()) }
     var errorMessage by remember { mutableStateOf("") }
 
     AppScaffold(title = "Record Savings", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
@@ -133,7 +136,7 @@ fun RecordSavingsScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () 
             } else {
                 Text(text = "Member: ${selectedMember!!.name}", style = MaterialTheme.typography.titleMedium)
                 AppTextField(value = amount, onValueChange = { amount = it }, label = "Amount")
-                AppTextField(value = date, onValueChange = { date = it }, label = "Date (e.g. 2026-10-24)")
+                AppDateField(value = date, onValueChange = { date = it }, label = "Date")
 
                 if (errorMessage.isNotEmpty()) {
                     Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
@@ -144,10 +147,10 @@ fun RecordSavingsScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () 
                     when {
                         amountValue == null -> errorMessage = "Enter the amount as a number"
                         amountValue <= 0.0 -> errorMessage = "Amount must be greater than zero"
-                        date.isBlank() -> errorMessage = "Enter the date"
+                        !isValidDate(date) -> errorMessage = "Pick a valid date"
                         else -> {
                             errorMessage = ""
-                            viewModel.recordSavings(selectedMember!!.id, amountValue, date.trim())
+                            viewModel.recordSavings(selectedMember!!.id, amountValue, date)
                             onDone()
                         }
                     }
