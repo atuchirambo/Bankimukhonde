@@ -3,6 +3,7 @@ package com.example.bankimukhonde.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.UUID
+import androidx.room.ColumnInfo
 
 @Entity
 data class Member(
@@ -27,8 +28,16 @@ data class Loan(
     val amount: Double,
     val interestRatePercent: Double,
     val dateIssued: String,
-    val outstandingBalance: Double = amount + (amount * interestRatePercent / 100)
+    val outstandingBalance: Double = amount + (amount * interestRatePercent / 100),
+    // Repayment term in months. 0 means "not set" (loans created before this feature).
+    @ColumnInfo(defaultValue = "0") val termMonths: Int = 0
 )
+
+/** Amount plus interest: what the member has to pay back in total. */
+fun Loan.totalOwed(): Double = amount + (amount * interestRatePercent / 100)
+
+/** Monthly instalment, or null if no term was set. */
+fun Loan.monthlyInstalment(): Double? = if (termMonths > 0) totalOwed() / termMonths else null
 
 @Entity
 data class Repayment(

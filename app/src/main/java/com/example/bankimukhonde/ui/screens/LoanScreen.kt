@@ -31,6 +31,9 @@ import com.example.bankimukhonde.ui.components.ConfirmDeleteDialog
 import com.example.bankimukhonde.ui.components.EditDialog
 import com.example.bankimukhonde.ui.components.RecordActionDialog
 import com.example.bankimukhonde.ui.components.StatCard
+import com.example.bankimukhonde.model.monthlyInstalment
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan: () -> Unit) {
@@ -51,24 +54,26 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
         when {
             editing -> EditDialog(
                 title = "Edit Loan",
-                labels = listOf("Loan Amount", "Interest Rate (%)", "Date Issued"),
-                initialValues = listOf(loan.amount.toString(), loan.interestRatePercent.toString(), loan.dateIssued),
+                labels = listOf("Loan Amount", "Interest Rate (%)", "Date Issued", "Repayment Term (months, 0 = not set)"),
+                initialValues = listOf(loan.amount.toString(), loan.interestRatePercent.toString(), loan.dateIssued, loan.termMonths.toString()),
                 validate = { v ->
                     val amount = v[0].trim().toDoubleOrNull()
                     val rate = v[1].trim().toDoubleOrNull()
+                    val term = v[3].trim().toIntOrNull()
                     when {
                         amount == null -> "Enter the loan amount as a number"
                         amount <= 0.0 -> "Loan amount must be greater than zero"
                         rate == null -> "Enter the interest rate as a number"
                         rate < 0.0 -> "Interest rate cannot be negative"
                         v[2].isBlank() -> "Enter the date"
+                        term == null || term < 0 || term > 120 -> "Term must be a whole number from 0 to 120"
                         amount + amount * rate / 100 < alreadyRepaid - 0.001 ->
                             "The new total is less than the MK $alreadyRepaid already repaid"
                         else -> null
                     }
                 },
                 onSave = { v ->
-                    viewModel.updateLoan(loan, v[0].trim().toDouble(), v[1].trim().toDouble(), v[2].trim())
+                    viewModel.updateLoan(loan, v[0].trim().toDouble(), v[1].trim().toDouble(), v[2].trim(), v[3].trim().toInt())
                     closeDialogs()
                 },
                 onDismiss = { closeDialogs() }
@@ -86,8 +91,10 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
             else -> RecordActionDialog(
                 title = "Loan",
                 details = "Member: $name\nAmount: MK ${loan.amount}\nInterest: ${loan.interestRatePercent}%\n" +
-                        "Date issued: ${loan.dateIssued}\nRepaid so far: MK $alreadyRepaid\n" +
-                        "Balance: MK ${loan.outstandingBalance}",
+                        "Date issued: ${loan.dateIssued}\n" +
+                        (if (loan.termMonths > 0) "Term: ${loan.termMonths} months\nMonthly instalment: MK ${"%.2f".format(loan.monthlyInstalment())}\n"
+                        else "Term: not set\n") +
+                        "Repaid so far: MK $alreadyRepaid\nBalance: MK ${loan.outstandingBalance}",
                 onEdit = { editing = true },
                 onDelete = { deleting = true },
                 onDismiss = { closeDialogs() }
@@ -117,18 +124,22 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
         }
     }
 }
-
 @Composable
 fun IssueLoanScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> Unit) {
     var selectedMember by remember { mutableStateOf<Member?>(null) }
     var amount by remember { mutableStateOf("") }
     var interestRate by remember { mutableStateOf("") }
+    var termMonths by remember { mutableStateOf("") }
     var date by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
     AppScaffold(title = "Issue Loan", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (selectedMember == null) {
@@ -136,16 +147,23 @@ fun IssueLoanScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> U
                 if (viewModel.members.isEmpty()) {
                     Text("No members yet. Register a member first.")
                 }
-                LazyColumn {
-                    items(viewModel.members) { member ->
-                        AvatarListItem(title = member.name, subtitle = member.phone, onClick = { selectedMember = member })
-                    }
+                viewModel.members.forEach { member ->
+                    AvatarListItem(title = member.name, subtitle = member.phone, onClick = { selectedMember = member })
                 }
             } else {
                 Text(text = "Member: ${selectedMember!!.name}", style = MaterialTheme.typography.titleMedium)
                 AppTextField(value = amount, onValueChange = { amount = it }, label = "Loan Amount")
                 AppTextField(value = interestRate, onValueChange = { interestRate = it }, label = "Interest Rate (%)")
+                AppTextField(value = termMonths, onValueChange = { termMonths = it }, label = "Repayment Term (months)")
                 AppTextField(value = date, onValueChange = { date = it }, label = "Date Issued (e.g. 2026-10-24)", leadingIcon = Icons.Default.CalendarMonth)
+
+                val previewAmount = amount.trim().toDoubleOrNull()
+                val previewRate = interestRate.trim().toDoubleOrNull()
+                val previewTerm = termMonths.trim().toIntOrNull()
+                if (previewAmount != null && previewRate != null && previewTerm != null && previewAmount > 0 && previewTerm > 0) {
+                    val total = previewAmount + previewAmount * previewRate / 100
+                    Text("Total to repay: MK ${"%.2f".format(total)}\nMonthly instalment: MK ${"%.2f".format(total / previewTerm)}")
+                }
 
                 if (errorMessage.isNotEmpty()) {
                     Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
@@ -154,15 +172,18 @@ fun IssueLoanScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> U
                 AppButton(text = "Issue Loan") {
                     val amountValue = amount.trim().toDoubleOrNull()
                     val rateValue = interestRate.trim().toDoubleOrNull()
+                    val termValue = termMonths.trim().toIntOrNull()
                     when {
                         amountValue == null -> errorMessage = "Enter the loan amount as a number"
                         amountValue <= 0.0 -> errorMessage = "Loan amount must be greater than zero"
                         rateValue == null -> errorMessage = "Enter the interest rate as a number (0 if none)"
                         rateValue < 0.0 -> errorMessage = "Interest rate cannot be negative"
+                        termValue == null -> errorMessage = "Enter the term as a whole number of months"
+                        termValue < 1 || termValue > 120 -> errorMessage = "Term must be between 1 and 120 months"
                         date.isBlank() -> errorMessage = "Enter the date"
                         else -> {
                             errorMessage = ""
-                            viewModel.issueLoan(selectedMember!!.id, amountValue, rateValue, date.trim())
+                            viewModel.issueLoan(selectedMember!!.id, amountValue, rateValue, date.trim(), termValue)
                             onDone()
                         }
                     }

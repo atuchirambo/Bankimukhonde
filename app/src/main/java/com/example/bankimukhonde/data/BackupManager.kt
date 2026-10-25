@@ -17,7 +17,7 @@ object BackupManager {
 
     private const val DB_NAME = "bankimukhonde.db"
     // Must match the version in @Database. Change it when the schema version changes.
-    private const val DB_VERSION = 1
+    private const val DB_VERSION = 2
 
     /** Copies the whole database file to the file the user chose. */
     suspend fun backup(context: Context, uri: Uri): Boolean = withContext(Dispatchers.IO) {
@@ -110,7 +110,7 @@ object BackupManager {
             sb.append("Savings,${esc(names[it.memberId] ?: "Unknown")},${it.date},${it.amount},\n")
         }
         loans.forEach {
-            val details = "Interest ${it.interestRatePercent}%, balance ${it.outstandingBalance}"
+            val details = "Interest ${it.interestRatePercent}%, term ${it.termMonths} months, balance ${it.outstandingBalance}"
             sb.append("Loan,${esc(names[it.memberId] ?: "Unknown")},${it.dateIssued},${it.amount},${esc(details)}\n")
         }
         repayments.forEach {

@@ -107,14 +107,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun issueLoan(memberId: String, amount: Double, interestRatePercent: Double, date: String) {
+    fun issueLoan(memberId: String, amount: Double, interestRatePercent: Double, date: String, termMonths: Int = 0) {
         viewModelScope.launch {
             loanDao.insert(
                 Loan(
                     memberId = memberId,
                     amount = amount,
                     interestRatePercent = interestRatePercent,
-                    dateIssued = date
+                    dateIssued = date,
+                    termMonths = termMonths
                 )
             )
         }
@@ -159,7 +160,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Recalculates the balance: new amount + interest, minus what was already repaid. */
-    fun updateLoan(loan: Loan, amount: Double, interestRatePercent: Double, date: String) {
+    fun updateLoan(loan: Loan, amount: Double, interestRatePercent: Double, date: String, termMonths: Int) {
         val alreadyRepaid = repaymentsFor(loan.id).sumOf { it.amount }
         val newTotal = amount + (amount * interestRatePercent / 100)
         viewModelScope.launch {
@@ -168,6 +169,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     amount = amount,
                     interestRatePercent = interestRatePercent,
                     dateIssued = date,
+                    termMonths = termMonths,
                     outstandingBalance = (newTotal - alreadyRepaid).coerceAtLeast(0.0)
                 )
             )
