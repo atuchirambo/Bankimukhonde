@@ -203,6 +203,7 @@ fun BankimukhondeApp() {
 
             composable("settings") {
                 SettingsScreen(
+                    viewModel = viewModel,
                     onBack = { navController.popBackStack() },
                     onChangePassword = { navController.navigate("changePassword") },
                     onLogout = {

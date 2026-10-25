@@ -48,6 +48,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     val isAdminSetUp: Boolean
         get() = adminAccount != null
+    val adminUsername: String
+        get() = adminAccount?.username ?: "Administrator"
 
     init {
         // Each launch starts a live feed: when the table changes, the list updates.
@@ -64,24 +66,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setupAdmin(username: String, password: String) {
-        viewModelScope.launch {
-            val account = AdminAccount(username = username, password = password)
-            adminDao.save(account)
-            adminAccount = account
-        }
+        val account = AdminAccount(username = username.trim(), password = PasswordHasher.hash(password.trim()))
+        adminAccount = account            // set immediately so login works right away
+        viewModelScope.launch { adminDao.save(account) }
     }
 
     fun checkLogin(username: String, password: String): Boolean {
         val account = adminAccount ?: return false
-        return username.trim().equals(account.username, ignoreCase = true) &&
-                password.trim() == account.password
+        if (!username.trim().equals(account.username, ignoreCase = true)) return false
+        if (!PasswordHasher.verify(password.trim(), account.password)) return false
+
+        // Upgrade an old plain-text password to a hash on the first successful login
+        if (!PasswordHasher.isHashed(account.password)) {
+            val upgraded = account.copy(password = PasswordHasher.hash(password.trim()))
+            adminAccount = upgraded
+            viewModelScope.launch { adminDao.save(upgraded) }
+        }
+        return true
     }
 
     fun changePassword(currentPassword: String, newPassword: String): Boolean {
         val account = adminAccount ?: return false
-        if (currentPassword.trim() != account.password) return false
+        if (!PasswordHasher.verify(currentPassword.trim(), account.password)) return false
 
-        val updated = account.copy(password = newPassword)
+        val updated = account.copy(password = PasswordHasher.hash(newPassword.trim()))
         adminAccount = updated
         viewModelScope.launch { adminDao.save(updated) }
         return true

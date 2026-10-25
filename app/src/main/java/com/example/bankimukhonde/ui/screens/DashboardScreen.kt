@@ -25,14 +25,19 @@ import com.example.bankimukhonde.ui.components.StatCard
 
 @Composable
 fun DashboardScreen(viewModel: AppViewModel, onNavigate: (String) -> Unit) {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val greeting = when {
+        hour < 12 -> "Good morning,"
+        hour < 18 -> "Good afternoon,"
+        else -> "Good evening,"
+    }
     AppScaffold(title = "BANKIMUKHONDE") { innerPadding: PaddingValues ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(text = "Good morning,", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Administrator", style = MaterialTheme.typography.headlineSmall)
-
+            Text(text = greeting, style = MaterialTheme.typography.bodyMedium)
+            Text(text = viewModel.adminUsername, style = MaterialTheme.typography.headlineSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
                     DashboardMenuItem(Icons.Default.Groups, "Members") { onNavigate("members") }

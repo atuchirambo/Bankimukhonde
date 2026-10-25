@@ -53,5 +53,12 @@ abstract class AppDatabase : RoomDatabase() {
                     .also { INSTANCE = it }
             }
         }
+        /** Closes the database and forgets it. Used before a restore replaces the file. */
+        fun closeInstance() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
     }
 }

@@ -50,6 +50,7 @@ fun RecordSavingsScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () 
     var selectedMember by remember { mutableStateOf<Member?>(null) }
     var amount by remember { mutableStateOf("") }
     var date by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
 
     AppScaffold(title = "Record Savings", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
         Column(
@@ -58,6 +59,9 @@ fun RecordSavingsScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () 
         ) {
             if (selectedMember == null) {
                 Text(text = "Select a member:", style = MaterialTheme.typography.titleMedium)
+                if (viewModel.members.isEmpty()) {
+                    Text("No members yet. Register a member first.")
+                }
                 LazyColumn {
                     items(viewModel.members) { member ->
                         AvatarListItem(title = member.name, subtitle = member.phone, onClick = { selectedMember = member })
@@ -66,13 +70,23 @@ fun RecordSavingsScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () 
             } else {
                 Text(text = "Member: ${selectedMember!!.name}", style = MaterialTheme.typography.titleMedium)
                 AppTextField(value = amount, onValueChange = { amount = it }, label = "Amount")
-                AppTextField(value = date, onValueChange = { date = it }, label = "Date")
+                AppTextField(value = date, onValueChange = { date = it }, label = "Date (e.g. 2026-10-24)")
+
+                if (errorMessage.isNotEmpty()) {
+                    Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+                }
 
                 AppButton(text = "Save Contribution") {
-                    val amountValue = amount.toDoubleOrNull()
-                    if (amountValue != null) {
-                        viewModel.recordSavings(selectedMember!!.id, amountValue, date)
-                        onDone()
+                    val amountValue = amount.trim().toDoubleOrNull()
+                    when {
+                        amountValue == null -> errorMessage = "Enter the amount as a number"
+                        amountValue <= 0.0 -> errorMessage = "Amount must be greater than zero"
+                        date.isBlank() -> errorMessage = "Enter the date"
+                        else -> {
+                            errorMessage = ""
+                            viewModel.recordSavings(selectedMember!!.id, amountValue, date.trim())
+                            onDone()
+                        }
                     }
                 }
             }
