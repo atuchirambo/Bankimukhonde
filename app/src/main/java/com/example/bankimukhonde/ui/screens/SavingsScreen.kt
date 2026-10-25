@@ -1,6 +1,5 @@
 package com.example.bankimukhonde.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,24 +20,86 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.bankimukhonde.data.AppViewModel
 import com.example.bankimukhonde.model.Member
+import com.example.bankimukhonde.model.SavingsEntry
 import com.example.bankimukhonde.ui.components.AppButton
 import com.example.bankimukhonde.ui.components.AppScaffold
 import com.example.bankimukhonde.ui.components.AppTextField
 import com.example.bankimukhonde.ui.components.AvatarListItem
+import com.example.bankimukhonde.ui.components.ConfirmDeleteDialog
+import com.example.bankimukhonde.ui.components.EditDialog
+import com.example.bankimukhonde.ui.components.RecordActionDialog
 import com.example.bankimukhonde.ui.components.StatCard
 
 @Composable
 fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordContribution: () -> Unit) {
+    var selected by remember { mutableStateOf<SavingsEntry?>(null) }
+    var editing by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+
+    fun closeDialogs() {
+        editing = false
+        deleting = false
+        selected = null
+    }
+
+    selected?.let { entry ->
+        val name = viewModel.members.find { it.id == entry.memberId }?.name ?: "Unknown"
+        when {
+            editing -> EditDialog(
+                title = "Edit Contribution",
+                labels = listOf("Amount", "Date"),
+                initialValues = listOf(entry.amount.toString(), entry.date),
+                validate = { v ->
+                    val amount = v[0].trim().toDoubleOrNull()
+                    when {
+                        amount == null -> "Enter the amount as a number"
+                        amount <= 0.0 -> "Amount must be greater than zero"
+                        v[1].isBlank() -> "Enter the date"
+                        else -> null
+                    }
+                },
+                onSave = { v ->
+                    viewModel.updateSavings(entry, v[0].trim().toDouble(), v[1].trim())
+                    closeDialogs()
+                },
+                onDismiss = { closeDialogs() }
+            )
+            deleting -> ConfirmDeleteDialog(
+                title = "Delete contribution?",
+                message = "MK ${entry.amount} from $name on ${entry.date} will be permanently deleted.",
+                onConfirm = {
+                    viewModel.deleteSavings(entry)
+                    closeDialogs()
+                },
+                onDismiss = { closeDialogs() }
+            )
+            else -> RecordActionDialog(
+                title = "Contribution",
+                details = "Member: $name\nAmount: MK ${entry.amount}\nDate: ${entry.date}",
+                onEdit = { editing = true },
+                onDelete = { deleting = true },
+                onDismiss = { closeDialogs() }
+            )
+        }
+    }
+
     AppScaffold(title = "Savings", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
             StatCard(icon = Icons.Default.Savings, label = "Total Savings (Group)", value = "MK ${viewModel.totalSavings()}")
             AppButton(text = "Record Contribution") { onRecordContribution() }
 
             Text(text = "Recent Contributions", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            if (viewModel.savingsEntries.isEmpty()) {
+                Text("No contributions recorded yet.")
+            }
             LazyColumn {
                 items(viewModel.savingsEntries) { entry ->
                     val memberName = viewModel.members.find { it.id == entry.memberId }?.name ?: "Unknown"
-                    AvatarListItem(title = memberName, subtitle = "MK ${entry.amount} — ${entry.date}", onClick = {})
+                    AvatarListItem(
+                        title = memberName,
+                        subtitle = "MK ${entry.amount} — ${entry.date}",
+                        onClick = { selected = entry }
+                    )
                 }
             }
         }

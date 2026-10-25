@@ -22,49 +22,96 @@ import androidx.compose.ui.unit.dp
 import com.example.bankimukhonde.data.AppViewModel
 import com.example.bankimukhonde.model.Loan
 import com.example.bankimukhonde.model.Member
+import com.example.bankimukhonde.model.Repayment
 import com.example.bankimukhonde.ui.components.AppButton
 import com.example.bankimukhonde.ui.components.AppScaffold
 import com.example.bankimukhonde.ui.components.AppTextField
 import com.example.bankimukhonde.ui.components.AvatarListItem
+import com.example.bankimukhonde.ui.components.ConfirmDeleteDialog
+import com.example.bankimukhonde.ui.components.EditDialog
+import com.example.bankimukhonde.ui.components.RecordActionDialog
 import com.example.bankimukhonde.ui.components.StatCard
 
 @Composable
 fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan: () -> Unit) {
+    var selected by remember { mutableStateOf<Loan?>(null) }
+    var editing by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+
+    fun closeDialogs() {
+        editing = false
+        deleting = false
+        selected = null
+    }
+
+    selected?.let { loan ->
+        val name = viewModel.members.find { it.id == loan.memberId }?.name ?: "Unknown"
+        val loanRepayments = viewModel.repaymentsFor(loan.id)
+        val alreadyRepaid = loanRepayments.sumOf { it.amount }
+        when {
+            editing -> EditDialog(
+                title = "Edit Loan",
+                labels = listOf("Loan Amount", "Interest Rate (%)", "Date Issued"),
+                initialValues = listOf(loan.amount.toString(), loan.interestRatePercent.toString(), loan.dateIssued),
+                validate = { v ->
+                    val amount = v[0].trim().toDoubleOrNull()
+                    val rate = v[1].trim().toDoubleOrNull()
+                    when {
+                        amount == null -> "Enter the loan amount as a number"
+                        amount <= 0.0 -> "Loan amount must be greater than zero"
+                        rate == null -> "Enter the interest rate as a number"
+                        rate < 0.0 -> "Interest rate cannot be negative"
+                        v[2].isBlank() -> "Enter the date"
+                        amount + amount * rate / 100 < alreadyRepaid - 0.001 ->
+                            "The new total is less than the MK $alreadyRepaid already repaid"
+                        else -> null
+                    }
+                },
+                onSave = { v ->
+                    viewModel.updateLoan(loan, v[0].trim().toDouble(), v[1].trim().toDouble(), v[2].trim())
+                    closeDialogs()
+                },
+                onDismiss = { closeDialogs() }
+            )
+            deleting -> ConfirmDeleteDialog(
+                title = "Delete loan?",
+                message = "The MK ${loan.amount} loan to $name will be permanently deleted" +
+                        if (loanRepayments.isNotEmpty()) ", together with its ${loanRepayments.size} repayment(s)." else ".",
+                onConfirm = {
+                    viewModel.deleteLoan(loan)
+                    closeDialogs()
+                },
+                onDismiss = { closeDialogs() }
+            )
+            else -> RecordActionDialog(
+                title = "Loan",
+                details = "Member: $name\nAmount: MK ${loan.amount}\nInterest: ${loan.interestRatePercent}%\n" +
+                        "Date issued: ${loan.dateIssued}\nRepaid so far: MK $alreadyRepaid\n" +
+                        "Balance: MK ${loan.outstandingBalance}",
+                onEdit = { editing = true },
+                onDelete = { deleting = true },
+                onDismiss = { closeDialogs() }
+            )
+        }
+    }
+
     AppScaffold(title = "Loans", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
             StatCard(icon = Icons.Default.Payments, label = "Total Loans Issued (Group)", value = "MK ${viewModel.totalLoansIssued()}")
             AppButton(text = "Issue Loan") { onIssueLoan() }
 
-            Text(text = "Active Loans", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            Text(text = "Loans", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            if (viewModel.loans.isEmpty()) {
+                Text("No loans issued yet.")
+            }
             LazyColumn {
                 items(viewModel.loans) { loan ->
                     val memberName = viewModel.members.find { it.id == loan.memberId }?.name ?: "Unknown"
                     AvatarListItem(
                         title = "$memberName — MK ${loan.amount} (${loan.interestRatePercent}%)",
                         subtitle = if (loan.outstandingBalance <= 0.0) "Fully paid" else "Balance: MK ${loan.outstandingBalance}",
-                        onClick = {}
+                        onClick = { selected = loan }
                     )
-                }
-            }
-        }
-    }
-}
-
-
-
-@Composable
-fun RepaymentsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordRepayment: () -> Unit) {
-    AppScaffold(title = "Repayments", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
-            StatCard(icon = Icons.Default.CalendarMonth, label = "Total Repayments (Group)", value = "MK ${viewModel.totalRepayments()}")
-            AppButton(text = "Record Repayment") { onRecordRepayment() }
-
-            Text(text = "Recent Repayments", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
-            LazyColumn {
-                items(viewModel.repayments) { repayment ->
-                    val loan = viewModel.loans.find { it.id == repayment.loanId }
-                    val memberName = viewModel.members.find { it.id == loan?.memberId }?.name ?: "Unknown"
-                    AvatarListItem(title = memberName, subtitle = "MK ${repayment.amount} — ${repayment.date}", onClick = {})
                 }
             }
         }
@@ -119,6 +166,66 @@ fun IssueLoanScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: () -> U
                             onDone()
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RepaymentsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordRepayment: () -> Unit) {
+    var selected by remember { mutableStateOf<Repayment?>(null) }
+    var deleting by remember { mutableStateOf(false) }
+
+    fun closeDialogs() {
+        deleting = false
+        selected = null
+    }
+
+    selected?.let { repayment ->
+        val loan = viewModel.loans.find { it.id == repayment.loanId }
+        val name = viewModel.members.find { it.id == loan?.memberId }?.name ?: "Unknown"
+        if (deleting) {
+            ConfirmDeleteDialog(
+                title = "Delete repayment?",
+                message = "The MK ${repayment.amount} repayment from $name will be deleted, " +
+                        "and the loan balance will go back up by that amount.",
+                onConfirm = {
+                    viewModel.deleteRepayment(repayment)
+                    closeDialogs()
+                },
+                onDismiss = { closeDialogs() }
+            )
+        } else {
+            RecordActionDialog(
+                title = "Repayment",
+                details = "Member: $name\nAmount: MK ${repayment.amount}\nDate: ${repayment.date}\n\n" +
+                        "To correct a mistake, delete this repayment and record it again.",
+                onEdit = null,
+                onDelete = { deleting = true },
+                onDismiss = { closeDialogs() }
+            )
+        }
+    }
+
+    AppScaffold(title = "Repayments", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
+            StatCard(icon = Icons.Default.CalendarMonth, label = "Total Repayments (Group)", value = "MK ${viewModel.totalRepayments()}")
+            AppButton(text = "Record Repayment") { onRecordRepayment() }
+
+            Text(text = "Recent Repayments", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            if (viewModel.repayments.isEmpty()) {
+                Text("No repayments recorded yet.")
+            }
+            LazyColumn {
+                items(viewModel.repayments) { repayment ->
+                    val loan = viewModel.loans.find { it.id == repayment.loanId }
+                    val memberName = viewModel.members.find { it.id == loan?.memberId }?.name ?: "Unknown"
+                    AvatarListItem(
+                        title = memberName,
+                        subtitle = "MK ${repayment.amount} — ${repayment.date}",
+                        onClick = { selected = repayment }
+                    )
                 }
             }
         }

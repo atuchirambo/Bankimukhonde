@@ -129,6 +129,74 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             repaymentDao.insert(Repayment(loanId = loanId, amount = amount, date = date))
         }
     }
+    // ---------- Edit and delete (FR9) ----------
+
+    fun updateMember(member: Member, name: String, phone: String, dateJoined: String) {
+        val updated = member.copy(name = name, phone = phone, dateJoined = dateJoined)
+        if (selectedMember?.id == member.id) selectedMember = updated
+        viewModelScope.launch { memberDao.update(updated) }
+    }
+
+    /** Deletes the member and everything that belongs to them. */
+    fun deleteMember(member: Member) {
+        selectedMember = null
+        viewModelScope.launch {
+            loans.filter { it.memberId == member.id }.forEach { loan ->
+                repayments.filter { it.loanId == loan.id }.forEach { repaymentDao.delete(it) }
+                loanDao.delete(loan)
+            }
+            savingsEntries.filter { it.memberId == member.id }.forEach { savingsDao.delete(it) }
+            memberDao.delete(member)
+        }
+    }
+
+    fun updateSavings(entry: SavingsEntry, amount: Double, date: String) {
+        viewModelScope.launch { savingsDao.update(entry.copy(amount = amount, date = date)) }
+    }
+
+    fun deleteSavings(entry: SavingsEntry) {
+        viewModelScope.launch { savingsDao.delete(entry) }
+    }
+
+    /** Recalculates the balance: new amount + interest, minus what was already repaid. */
+    fun updateLoan(loan: Loan, amount: Double, interestRatePercent: Double, date: String) {
+        val alreadyRepaid = repaymentsFor(loan.id).sumOf { it.amount }
+        val newTotal = amount + (amount * interestRatePercent / 100)
+        viewModelScope.launch {
+            loanDao.update(
+                loan.copy(
+                    amount = amount,
+                    interestRatePercent = interestRatePercent,
+                    dateIssued = date,
+                    outstandingBalance = (newTotal - alreadyRepaid).coerceAtLeast(0.0)
+                )
+            )
+        }
+    }
+
+    /** Deletes the loan and all of its repayments. */
+    fun deleteLoan(loan: Loan) {
+        viewModelScope.launch {
+            repayments.filter { it.loanId == loan.id }.forEach { repaymentDao.delete(it) }
+            loanDao.delete(loan)
+        }
+    }
+
+    /** Deletes a repayment and puts its amount back onto the loan balance. */
+    fun deleteRepayment(repayment: Repayment) {
+        viewModelScope.launch {
+            val loan = loans.find { it.id == repayment.loanId }
+            if (loan != null) {
+                val totalOwed = loan.amount + (loan.amount * loan.interestRatePercent / 100)
+                loanDao.update(
+                    loan.copy(
+                        outstandingBalance = (loan.outstandingBalance + repayment.amount).coerceAtMost(totalOwed)
+                    )
+                )
+            }
+            repaymentDao.delete(repayment)
+        }
+    }
 
     fun totalSavings(): Double = savingsEntries.sumOf { it.amount }
     fun totalLoansIssued(): Double = loans.sumOf { it.amount }
