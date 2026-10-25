@@ -39,6 +39,8 @@ import com.example.bankimukhonde.ui.components.AvatarListItem
 import com.example.bankimukhonde.ui.components.ConfirmDeleteDialog
 import com.example.bankimukhonde.ui.components.EditDialog
 import com.example.bankimukhonde.ui.components.StatCard
+import com.example.bankimukhonde.data.money
+import com.example.bankimukhonde.data.plain
 
 @Composable
 fun MemberListScreen(
@@ -188,16 +190,16 @@ fun MemberDetailScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             when (tab) {
                 0 -> {
                     val entries = viewModel.savingsFor(member.id)
-                    StatCard(icon = Icons.Default.Person, label = "Total Savings", value = "MK ${entries.sumOf { it.amount }}")
-                    LazyColumn { items(entries) { e -> AvatarListItem(title = "MK ${e.amount}", subtitle = e.date, onClick = {}) } }
+                    StatCard(icon = Icons.Default.Person, label = "Total Savings", value = money(entries.sumOf { it.amount }))
+                    LazyColumn { items(entries) { e -> AvatarListItem(title = money(e.amount), subtitle = e.date, onClick = {}) } }
                 }
                 1 -> {
                     val loans = viewModel.loansFor(member.id)
-                    LazyColumn { items(loans) { l -> AvatarListItem(title = "MK ${l.amount} (${l.interestRatePercent}%)", subtitle = "Balance: ${l.outstandingBalance}", onClick = {}) } }
+                    LazyColumn { items(loans) { l -> AvatarListItem(title = "${money(l.amount)} (${plain(l.interestRatePercent)}%)", subtitle = "Balance: ${money(l.outstandingBalance)}", onClick = {}) } }
                 }
                 2 -> {
                     val repayments = viewModel.repaymentsForMember(member.id)
-                    LazyColumn { items(repayments) { r -> AvatarListItem(title = "MK ${r.amount}", subtitle = r.date, onClick = {}) } }
+                    LazyColumn { items(repayments) { r -> AvatarListItem(title = money(r.amount), subtitle = r.date, onClick = {}) } }
                 }
             }
         }

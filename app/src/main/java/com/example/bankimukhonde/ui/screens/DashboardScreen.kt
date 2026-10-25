@@ -22,6 +22,7 @@ import com.example.bankimukhonde.data.AppViewModel
 import com.example.bankimukhonde.ui.components.AppScaffold
 import com.example.bankimukhonde.ui.components.DashboardMenuItem
 import com.example.bankimukhonde.ui.components.StatCard
+import com.example.bankimukhonde.data.money
 
 @Composable
 fun DashboardScreen(viewModel: AppViewModel, onNavigate: (String) -> Unit) {
@@ -63,7 +64,7 @@ fun DashboardScreen(viewModel: AppViewModel, onNavigate: (String) -> Unit) {
                 }
             }
 
-            StatCard(icon = Icons.Default.Savings, label = "Total Savings", value = "MK ${viewModel.totalSavings()}")
+            StatCard(icon = Icons.Default.Savings, label = "Total Savings", value = money(viewModel.totalSavings()))
         }
     }
 }

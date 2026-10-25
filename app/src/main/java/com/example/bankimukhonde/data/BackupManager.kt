@@ -107,20 +107,20 @@ object BackupManager {
         val sb = StringBuilder("\uFEFF")
         sb.append("Type,Member,Date,Amount (MK),Details\n")
         savings.forEach {
-            sb.append("Savings,${esc(names[it.memberId] ?: "Unknown")},${it.date},${it.amount},\n")
+            sb.append("Savings,${esc(names[it.memberId] ?: "Unknown")},${it.date},${plain(it.amount)},\n")
         }
         loans.forEach {
-            val details = "Interest ${it.interestRatePercent}%, term ${it.termMonths} months, balance ${it.outstandingBalance}"
-            sb.append("Loan,${esc(names[it.memberId] ?: "Unknown")},${it.dateIssued},${it.amount},${esc(details)}\n")
+            val details = "Interest ${plain(it.interestRatePercent)}%, term ${it.termMonths} months, balance ${plain(it.outstandingBalance)}"
+            sb.append("Loan,${esc(names[it.memberId] ?: "Unknown")},${it.dateIssued},${plain(it.amount)},${esc(details)}\n")
         }
         repayments.forEach {
             val owner = names[loanOwner[it.loanId]] ?: "Unknown"
-            sb.append("Repayment,${esc(owner)},${it.date},${it.amount},\n")
+            sb.append("Repayment,${esc(owner)},${it.date},${plain(it.amount)},\n")
         }
         sb.append("\n")
-        sb.append("Total savings,,,${savings.sumOf { it.amount }},\n")
-        sb.append("Total loans issued,,,${loans.sumOf { it.amount }},\n")
-        sb.append("Total repayments,,,${repayments.sumOf { it.amount }},\n")
+        sb.append("Total savings,,,${plain(savings.sumOf { it.amount })},\n")
+        sb.append("Total loans issued,,,${plain(loans.sumOf { it.amount })},\n")
+        sb.append("Total repayments,,,${plain(repayments.sumOf { it.amount })},\n")
         return sb.toString()
     }
 }

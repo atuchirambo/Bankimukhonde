@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.bankimukhonde.data.money
 
 @Composable
 fun ReportsScreen(viewModel: AppViewModel, onBack: () -> Unit, onViewMembers: () -> Unit) {
@@ -70,9 +71,9 @@ fun ReportsScreen(viewModel: AppViewModel, onBack: () -> Unit, onViewMembers: ()
             )
 
             Text(text = "Group Summary Report", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-            StatCard(icon = Icons.Default.Assessment, label = "Total Savings", value = "MK ${viewModel.totalSavings()}")
-            StatCard(icon = Icons.Default.Assessment, label = "Total Loans Issued", value = "MK ${viewModel.totalLoansIssued()}")
-            StatCard(icon = Icons.Default.Assessment, label = "Total Repayments", value = "MK ${viewModel.totalRepayments()}")
+            StatCard(icon = Icons.Default.Assessment, label = "Total Savings", value = money(viewModel.totalSavings()))
+            StatCard(icon = Icons.Default.Assessment, label = "Total Loans Issued", value = money(viewModel.totalLoansIssued()))
+            StatCard(icon = Icons.Default.Assessment, label = "Total Repayments", value = money(viewModel.totalRepayments()))
 
             OutlinedButton(
                 onClick = {

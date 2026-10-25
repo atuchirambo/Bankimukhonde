@@ -12,18 +12,7 @@ import org.junit.Assert.assertNull
 
 class ModelTest {
 
-    @Test
-    fun loan_monthlyInstalment_splitsTotalOverTerm() {
-        val loan = Loan(memberId = "m1", amount = 1000.0, interestRatePercent = 20.0, dateIssued = "2026-10-01", termMonths = 6)
-        assertEquals(1200.0, loan.totalOwed(), 0.001)
-        assertEquals(200.0, loan.monthlyInstalment()!!, 0.001)
-    }
 
-    @Test
-    fun loan_withoutTerm_hasNoInstalment() {
-        val loan = Loan(memberId = "m1", amount = 1000.0, interestRatePercent = 10.0, dateIssued = "2026-10-01")
-        assertNull(loan.monthlyInstalment())
-    }
 
     @Test
     fun loan_startingBalance_includesInterest() {

@@ -19,6 +19,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.bankimukhonde.data.AppViewModel
+import com.example.bankimukhonde.data.money
+import com.example.bankimukhonde.data.plain
 import com.example.bankimukhonde.model.Member
 import com.example.bankimukhonde.model.SavingsEntry
 import com.example.bankimukhonde.ui.components.AppButton
@@ -48,7 +50,7 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
             editing -> EditDialog(
                 title = "Edit Contribution",
                 labels = listOf("Amount", "Date"),
-                initialValues = listOf(entry.amount.toString(), entry.date),
+                initialValues = listOf(plain(entry.amount), entry.date),
                 validate = { v ->
                     val amount = v[0].trim().toDoubleOrNull()
                     when {
@@ -66,7 +68,7 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
             )
             deleting -> ConfirmDeleteDialog(
                 title = "Delete contribution?",
-                message = "MK ${entry.amount} from $name on ${entry.date} will be permanently deleted.",
+                message = "${money(entry.amount)} from $name on ${entry.date} will be permanently deleted.",
                 onConfirm = {
                     viewModel.deleteSavings(entry)
                     closeDialogs()
@@ -75,7 +77,7 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
             )
             else -> RecordActionDialog(
                 title = "Contribution",
-                details = "Member: $name\nAmount: MK ${entry.amount}\nDate: ${entry.date}",
+                details = "Member: $name\nAmount: ${money(entry.amount)}\nDate: ${entry.date}",
                 onEdit = { editing = true },
                 onDelete = { deleting = true },
                 onDismiss = { closeDialogs() }
@@ -85,7 +87,7 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
 
     AppScaffold(title = "Savings", showBack = true, onBack = onBack) { innerPadding: PaddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
-            StatCard(icon = Icons.Default.Savings, label = "Total Savings (Group)", value = "MK ${viewModel.totalSavings()}")
+            StatCard(icon = Icons.Default.Savings, label = "Total Savings (Group)", value = money(viewModel.totalSavings()))
             AppButton(text = "Record Contribution") { onRecordContribution() }
 
             Text(text = "Recent Contributions", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
@@ -97,7 +99,7 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
                     val memberName = viewModel.members.find { it.id == entry.memberId }?.name ?: "Unknown"
                     AvatarListItem(
                         title = memberName,
-                        subtitle = "MK ${entry.amount} — ${entry.date}",
+                        subtitle = "${money(entry.amount)} — ${entry.date}",
                         onClick = { selected = entry }
                     )
                 }
