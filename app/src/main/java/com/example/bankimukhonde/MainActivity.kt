@@ -42,19 +42,13 @@ import com.example.bankimukhonde.ui.screens.WelcomeScreen
 import com.example.bankimukhonde.ui.screens.ChangePasswordScreen
 import androidx.compose.runtime.remember
 
-private val BankimukhondeColors = lightColorScheme(
-    primary = Color(0xFF1F6B3A),
-    onPrimary = Color.White,
-    secondary = Color(0xFF4C8C62),
-    background = Color(0xFFFAFAFA),
-    surface = Color.White
-)
+import com.example.bankimukhonde.ui.theme.BankimukhondeTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = BankimukhondeColors) {
+            BankimukhondeTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     BankimukhondeApp()
                 }
