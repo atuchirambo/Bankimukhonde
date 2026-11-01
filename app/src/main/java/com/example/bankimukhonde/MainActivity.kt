@@ -40,6 +40,7 @@ import com.example.bankimukhonde.ui.screens.SettingsScreen
 import com.example.bankimukhonde.ui.screens.SetupAccountScreen
 import com.example.bankimukhonde.ui.screens.WelcomeScreen
 import com.example.bankimukhonde.ui.screens.ChangePasswordScreen
+import com.example.bankimukhonde.ui.screens.SplashScreen
 import androidx.compose.runtime.remember
 
 import com.example.bankimukhonde.ui.theme.BankimukhondeTheme
@@ -62,7 +63,10 @@ fun BankimukhondeApp() {
     val navController: NavHostController = rememberNavController()
     val viewModel: AppViewModel = viewModel()
     // Wait until we know whether an administrator account exists
-    if (!viewModel.adminLoaded) return
+    if (!viewModel.adminLoaded) {
+        SplashScreen()
+        return
+    }
 
     // Which screen are we on right now? Used to decide whether to show the bottom bar.
     val backStackEntry by navController.currentBackStackEntryAsState()
