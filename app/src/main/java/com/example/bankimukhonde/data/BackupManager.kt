@@ -67,7 +67,7 @@ object BackupManager {
                 while (c.moveToNext()) tables.add(c.getString(0))
             }
             val required = listOf("Member", "SavingsEntry", "Loan", "Repayment", "AdminAccount")
-            tables.containsAll(required) && db.version == DB_VERSION
+            tables.containsAll(required) && db.version in 1..DB_VERSION
         }
     } catch (e: Exception) {
         false

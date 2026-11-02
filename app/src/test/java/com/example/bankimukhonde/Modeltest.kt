@@ -49,4 +49,17 @@ class ModelTest {
         val account = AdminAccount(username = "chair", password = "secret")
         assertEquals(0, account.id)
     }
+
+    @Test
+    fun loan_monthlyInstalment_calculatesCorrectlyWhenTermIsSet() {
+        val loan = Loan(memberId = "m1", amount = 12000.0, interestRatePercent = 0.0, dateIssued = "2026-10-01", termMonths = 12)
+        assertEquals(12000.0, loan.totalOwed(), 0.001)
+        assertEquals(1000.0, loan.monthlyInstalment()!!, 0.001)
+    }
+
+    @Test
+    fun loan_monthlyInstalment_returnsNullWhenTermIsZero() {
+        val loan = Loan(memberId = "m1", amount = 10000.0, interestRatePercent = 10.0, dateIssued = "2026-10-01", termMonths = 0)
+        assertNull(loan.monthlyInstalment())
+    }
 }
