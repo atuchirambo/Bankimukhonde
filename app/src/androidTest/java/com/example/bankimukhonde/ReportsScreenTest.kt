@@ -31,7 +31,8 @@ class ReportsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Financial Reports").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Reports").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Group Summary Report").assertIsDisplayed()
         composeTestRule.onNodeWithText("Total Savings").assertIsDisplayed()
     }
 }

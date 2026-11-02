@@ -31,9 +31,10 @@ class ChangePasswordScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Change Admin Password").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Change Password").assertIsDisplayed()
         composeTestRule.onNodeWithText("Current Password").assertIsDisplayed()
         composeTestRule.onNodeWithText("New Password").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Confirm New Password").assertIsDisplayed()
         composeTestRule.onNodeWithText("Update Password").assertIsDisplayed()
     }
 }

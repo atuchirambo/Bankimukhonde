@@ -33,7 +33,8 @@ class LoanScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Loans Management").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Loans").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Total Loans Issued (Group)").assertIsDisplayed()
         composeTestRule.onNodeWithText("Issue Loan").assertIsDisplayed()
     }
 

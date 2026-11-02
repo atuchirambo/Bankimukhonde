@@ -36,7 +36,7 @@ class SettingsScreenTest {
 
         composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
         composeTestRule.onNodeWithText("Change Password").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Logout").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Log Out", substring = true).assertIsDisplayed()
     }
 
     @Test

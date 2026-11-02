@@ -33,7 +33,8 @@ class SavingsScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Savings Overview").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Savings").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Total Savings (Group)").assertIsDisplayed()
         composeTestRule.onNodeWithText("Record Contribution").assertIsDisplayed()
     }
 

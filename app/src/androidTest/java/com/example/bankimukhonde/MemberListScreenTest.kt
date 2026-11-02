@@ -19,7 +19,7 @@ class MemberListScreenTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun memberListScreen_displaysHeaderAndSearch() {
+    fun memberListScreen_displaysHeader() {
         val application = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = AppViewModel(application)
 
@@ -32,7 +32,6 @@ class MemberListScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("Members Directory").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Search members...").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Members").assertIsDisplayed()
     }
 }
