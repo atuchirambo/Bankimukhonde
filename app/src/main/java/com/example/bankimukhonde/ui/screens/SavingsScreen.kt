@@ -34,6 +34,10 @@ import com.example.bankimukhonde.ui.components.StatCard
 import com.example.bankimukhonde.data.isValidDate
 import com.example.bankimukhonde.data.todayString
 import com.example.bankimukhonde.ui.components.AppDateField
+import com.example.bankimukhonde.ui.components.EmptyState
+import com.example.bankimukhonde.ui.components.IconBadge
+import com.example.bankimukhonde.ui.components.ListRow
+import com.example.bankimukhonde.ui.components.SectionHeader
 
 @Composable
 fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordContribution: () -> Unit) {
@@ -93,16 +97,23 @@ fun SavingsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onRecordC
             StatCard(icon = Icons.Default.Savings, label = "Total Savings (Group)", value = money(viewModel.totalSavings()))
             AppButton(text = "Record Contribution") { onRecordContribution() }
 
-            Text(text = "Recent Contributions", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            SectionHeader("Recent Contributions")
             if (viewModel.savingsEntries.isEmpty()) {
-                Text("No contributions recorded yet.")
+                EmptyState(
+                    icon = Icons.Default.Savings,
+                    message = "No contributions recorded yet.",
+                    hint = "Tap “Record Contribution” to add the first one."
+                )
             }
-            LazyColumn {
+            LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(viewModel.savingsEntries) { entry ->
                     val memberName = viewModel.members.find { it.id == entry.memberId }?.name ?: "Unknown"
-                    AvatarListItem(
+                    ListRow(
+                        leading = { IconBadge(Icons.Default.Savings) },
                         title = memberName,
-                        subtitle = "${money(entry.amount)} — ${entry.date}",
+                        subtitle = entry.date,
+                        amount = money(entry.amount),
+                        amountColor = MaterialTheme.colorScheme.primary,
                         onClick = { selected = entry }
                     )
                 }

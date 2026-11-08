@@ -47,6 +47,11 @@ import com.example.bankimukhonde.data.todayString
 import com.example.bankimukhonde.ui.components.AppDateField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.example.bankimukhonde.ui.components.EmptyState
+import com.example.bankimukhonde.ui.components.InitialsAvatar
+import com.example.bankimukhonde.ui.components.ListRow
+import com.example.bankimukhonde.ui.components.SectionHeader
+import androidx.compose.material.icons.filled.Groups
 
 @Composable
 fun MemberListScreen(
@@ -91,15 +96,24 @@ fun MemberListScreen(
                 )
             }
             if (viewModel.members.isEmpty()) {
-                Text("No members yet. Tap + to register one.")
+                EmptyState(
+                    icon = Icons.Default.Groups,
+                    message = "No members yet. Tap + to register one."
+                )
             } else if (shown.isEmpty()) {
-                Text("No members match your search.")
+                EmptyState(icon = Icons.Default.Search, message = "No members match your search.")
+            } else {
+                SectionHeader(
+                    if (q.isEmpty()) "${shown.size} member" + (if (shown.size == 1) "" else "s")
+                    else "${shown.size} found"
+                )
             }
-            LazyColumn {
+            LazyColumn(contentPadding = PaddingValues(bottom = 88.dp)) {
                 items(shown) { member ->
-                    AvatarListItem(
+                    ListRow(
+                        leading = { InitialsAvatar(member.name) },
                         title = member.name,
-                        subtitle = member.phone,
+                        subtitle = member.phone.ifBlank { "No phone number" },
                         onClick = {
                             viewModel.selectedMember = member
                             onSelectMember(member)

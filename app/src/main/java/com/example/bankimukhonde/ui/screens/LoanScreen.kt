@@ -39,6 +39,13 @@ import com.example.bankimukhonde.ui.components.StatCard
 import com.example.bankimukhonde.data.isValidDate
 import com.example.bankimukhonde.data.todayString
 import com.example.bankimukhonde.ui.components.AppDateField
+import androidx.compose.material.icons.filled.CheckCircle
+import com.example.bankimukhonde.model.totalOwed
+import com.example.bankimukhonde.ui.components.BalanceColor
+import com.example.bankimukhonde.ui.components.EmptyState
+import com.example.bankimukhonde.ui.components.IconBadge
+import com.example.bankimukhonde.ui.components.ListRow
+import com.example.bankimukhonde.ui.components.SectionHeader
 
 @Composable
 fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan: () -> Unit) {
@@ -112,16 +119,29 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
             StatCard(icon = Icons.Default.Payments, label = "Total Loans Issued (Group)", value = money(viewModel.totalLoansIssued()))
             AppButton(text = "Issue Loan") { onIssueLoan() }
 
-            Text(text = "Loans", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            SectionHeader("Loans")
             if (viewModel.loans.isEmpty()) {
-                Text("No loans issued yet.")
+                EmptyState(
+                    icon = Icons.Default.Payments,
+                    message = "No loans issued yet.",
+                    hint = "Tap “Issue Loan” to lend to a member."
+                )
             }
-            LazyColumn {
+            LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(viewModel.loans) { loan ->
                     val memberName = viewModel.members.find { it.id == loan.memberId }?.name ?: "Unknown"
-                    AvatarListItem(
-                        title = "$memberName — ${money(loan.amount)} (${plain(loan.interestRatePercent)}%)",
-                        subtitle = if (loan.outstandingBalance <= 0.0) "Fully paid" else "Balance: ${money(loan.outstandingBalance)}",
+                    val paid = loan.outstandingBalance <= 0.0
+                    val owed = loan.totalOwed()
+                    val repaidFraction = if (owed > 0.0) ((owed - loan.outstandingBalance) / owed).toFloat().coerceIn(0f, 1f) else 1f
+                    val term = if (loan.termMonths > 0) " · ${loan.termMonths} months" else ""
+                    ListRow(
+                        leading = { IconBadge(Icons.Default.Payments) },
+                        title = memberName,
+                        subtitle = "${money(loan.amount)} at ${plain(loan.interestRatePercent)}%$term",
+                        amount = if (paid) "Fully paid" else money(loan.outstandingBalance),
+                        amountColor = if (paid) MaterialTheme.colorScheme.primary else BalanceColor,
+                        note = if (paid) null else "balance due",
+                        progress = repaidFraction,
                         onClick = { selected = loan }
                     )
                 }
@@ -240,17 +260,24 @@ fun RepaymentsOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onReco
             StatCard(icon = Icons.Default.CalendarMonth, label = "Total Repayments (Group)", value = money(viewModel.totalRepayments()))
             AppButton(text = "Record Repayment") { onRecordRepayment() }
 
-            Text(text = "Recent Repayments", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
+            SectionHeader("Recent Repayments")
             if (viewModel.repayments.isEmpty()) {
-                Text("No repayments recorded yet.")
+                EmptyState(
+                    icon = Icons.Default.CheckCircle,
+                    message = "No repayments recorded yet.",
+                    hint = "Tap “Record Repayment” when a member pays back a loan."
+                )
             }
-            LazyColumn {
+            LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(viewModel.repayments) { repayment ->
                     val loan = viewModel.loans.find { it.id == repayment.loanId }
                     val memberName = viewModel.members.find { it.id == loan?.memberId }?.name ?: "Unknown"
-                    AvatarListItem(
+                    ListRow(
+                        leading = { IconBadge(Icons.Default.CheckCircle) },
                         title = memberName,
-                        subtitle = "${money(repayment.amount)} — ${repayment.date}",
+                        subtitle = repayment.date,
+                        amount = money(repayment.amount),
+                        amountColor = MaterialTheme.colorScheme.primary,
                         onClick = { selected = repayment }
                     )
                 }
