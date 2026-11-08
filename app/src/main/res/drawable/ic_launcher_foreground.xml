@@ -8,16 +8,13 @@
         android:pivotY="54"
         android:scaleX="0.75"
         android:scaleY="0.75">
-        <!-- Outer Ring -->
+        <!-- Outer Emblem Ring -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M54,20c-18.8,0 -34,15.2 -34,34s15.2,34 34,34s34,-15.2 34,-34s-15.2,-34 -34,-34zM54,82c-15.5,0 -28,-12.5 -28,-28s12.5,-28 28,-28s28,12.5 28,28s-12.5,28 -28,28z" />
-        <!-- Inner Bank / Savings Symbol -->
+            android:pathData="M54,16c-21,0 -38,17 -38,38s17,38 38,38s38,-17 38,-38s-17,-38 -38,-38zM54,84c-16.5,0 -30,-13.5 -30,-30s13.5,-30 30,-30s30,13.5 30,30s-13.5,30 -30,30z" />
+        <!-- Bold Letter 'B' for BANKIMUKHONDE -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M50,34h8v40h-8z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M34,50h40v8h-40z" />
+            android:pathData="M40,32h16c6.6,0 12,4.5 12,10c0,3.6 -2.3,6.8 -5.8,8.5c4.5,1.6 7.8,5.4 7.8,10.5c0,6.1 -5.8,11 -13,11h-17v-40zM48,46h7c2.8,0 5,-1.8 5,-4s-2.2,-4 -5,-4h-7v8zM48,64h8c3.3,0 6,-2.2 6,-5s-2.7,-5 -6,-5h-8v10z" />
     </group>
 </vector>

@@ -6,11 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Savings
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,12 +29,22 @@ fun SplashScreen() {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.Savings,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
-            )
+            Surface(
+                modifier = Modifier.size(84.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "B",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Black,
+                            fontSize = 46.sp
+                        ),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             Text(
                 text = "BANKIMUKHONDE",
                 style = MaterialTheme.typography.headlineMedium.copy(
@@ -43,7 +52,7 @@ fun SplashScreen() {
                     letterSpacing = 2.sp
                 ),
                 color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.padding(top = 16.dp, bottom = 24.dp)
+                modifier = Modifier.padding(top = 20.dp, bottom = 24.dp)
             )
             CircularProgressIndicator(
                 color = MaterialTheme.colorScheme.onPrimary,
