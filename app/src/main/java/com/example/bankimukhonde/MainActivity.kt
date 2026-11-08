@@ -12,7 +12,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -62,8 +67,16 @@ class MainActivity : ComponentActivity() {
 fun BankimukhondeApp() {
     val navController: NavHostController = rememberNavController()
     val viewModel: AppViewModel = viewModel()
-    // Wait until we know whether an administrator account exists
-    if (!viewModel.adminLoaded) {
+
+    var splashFinished by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(3000L)
+        splashFinished = true
+    }
+
+    // Show splash screen for 3 seconds and until admin data is loaded
+    if (!viewModel.adminLoaded || !splashFinished) {
         SplashScreen()
         return
     }
