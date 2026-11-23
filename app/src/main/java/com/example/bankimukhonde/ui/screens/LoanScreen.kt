@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,30 +23,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.bankimukhonde.data.AppViewModel
+import com.example.bankimukhonde.data.isValidDate
 import com.example.bankimukhonde.data.money
 import com.example.bankimukhonde.data.plain
+import com.example.bankimukhonde.data.todayString
 import com.example.bankimukhonde.model.Loan
 import com.example.bankimukhonde.model.Member
 import com.example.bankimukhonde.model.Repayment
 import com.example.bankimukhonde.model.monthlyInstalment
+import com.example.bankimukhonde.model.totalOwed
 import com.example.bankimukhonde.ui.components.AppButton
+import com.example.bankimukhonde.ui.components.AppDateField
 import com.example.bankimukhonde.ui.components.AppScaffold
 import com.example.bankimukhonde.ui.components.AppTextField
 import com.example.bankimukhonde.ui.components.AvatarListItem
+import com.example.bankimukhonde.ui.components.BalanceColor
 import com.example.bankimukhonde.ui.components.ConfirmDeleteDialog
 import com.example.bankimukhonde.ui.components.EditDialog
-import com.example.bankimukhonde.ui.components.RecordActionDialog
-import com.example.bankimukhonde.ui.components.StatCard
-import com.example.bankimukhonde.data.isValidDate
-import com.example.bankimukhonde.data.todayString
-import com.example.bankimukhonde.ui.components.AppDateField
-import androidx.compose.material.icons.filled.CheckCircle
-import com.example.bankimukhonde.model.totalOwed
-import com.example.bankimukhonde.ui.components.BalanceColor
 import com.example.bankimukhonde.ui.components.EmptyState
 import com.example.bankimukhonde.ui.components.IconBadge
 import com.example.bankimukhonde.ui.components.ListRow
+import com.example.bankimukhonde.ui.components.RecordActionDialog
 import com.example.bankimukhonde.ui.components.SectionHeader
+import com.example.bankimukhonde.ui.components.StatCard
 
 @Composable
 fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan: () -> Unit) {
@@ -63,6 +63,7 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
         val name = viewModel.members.find { it.id == loan.memberId }?.name ?: "Unknown"
         val loanRepayments = viewModel.repaymentsFor(loan.id)
         val alreadyRepaid = loanRepayments.sumOf { it.amount }
+        val currentBalance = viewModel.outstandingBalance(loan)
         when {
             editing -> EditDialog(
                 title = "Edit Loan",
@@ -106,7 +107,7 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
                         "Date issued: ${loan.dateIssued}\n" +
                         (if (loan.termMonths > 0) "Term: ${loan.termMonths} months\nMonthly instalment: ${money(loan.monthlyInstalment() ?: 0.0)}\n"
                         else "Term: not set\n") +
-                        "Repaid so far: ${money(alreadyRepaid)}\nBalance: ${money(loan.outstandingBalance)}",
+                        "Repaid so far: ${money(alreadyRepaid)}\nBalance: ${money(currentBalance)}",
                 onEdit = { editing = true },
                 onDelete = { deleting = true },
                 onDismiss = { closeDialogs() }
@@ -130,15 +131,16 @@ fun LoansOverviewScreen(viewModel: AppViewModel, onBack: () -> Unit, onIssueLoan
             LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(viewModel.loans) { loan ->
                     val memberName = viewModel.members.find { it.id == loan.memberId }?.name ?: "Unknown"
-                    val paid = loan.outstandingBalance <= 0.0
+                    val balance = viewModel.outstandingBalance(loan)
+                    val paid = balance <= 0.0
                     val owed = loan.totalOwed()
-                    val repaidFraction = if (owed > 0.0) ((owed - loan.outstandingBalance) / owed).toFloat().coerceIn(0f, 1f) else 1f
+                    val repaidFraction = if (owed > 0.0) ((owed - balance) / owed).toFloat().coerceIn(0f, 1f) else 1f
                     val term = if (loan.termMonths > 0) " · ${loan.termMonths} months" else ""
                     ListRow(
                         leading = { IconBadge(Icons.Default.Payments) },
                         title = memberName,
                         subtitle = "${money(loan.amount)} at ${plain(loan.interestRatePercent)}%$term",
-                        amount = if (paid) "Fully paid" else money(loan.outstandingBalance),
+                        amount = if (paid) "Fully paid" else money(balance),
                         amountColor = if (paid) MaterialTheme.colorScheme.primary else BalanceColor,
                         note = if (paid) null else "balance due",
                         progress = repaidFraction,
@@ -299,7 +301,7 @@ fun RecordRepaymentScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: (
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (selectedLoan == null) {
-                val unpaidLoans = viewModel.loans.filter { it.outstandingBalance > 0.0 }
+                val unpaidLoans = viewModel.loans.filter { viewModel.outstandingBalance(it) > 0.0 }
                 Text(text = "Select a loan:", style = MaterialTheme.typography.titleMedium)
                 if (unpaidLoans.isEmpty()) {
                     Text("There are no loans with an outstanding balance.")
@@ -307,12 +309,14 @@ fun RecordRepaymentScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: (
                 LazyColumn {
                     items(unpaidLoans) { loan ->
                         val memberName = viewModel.members.find { it.id == loan.memberId }?.name ?: "Unknown"
-                        AvatarListItem(title = memberName, subtitle = "Balance: ${money(loan.outstandingBalance)}", onClick = { selectedLoan = loan })
+                        val balance = viewModel.outstandingBalance(loan)
+                        AvatarListItem(title = memberName, subtitle = "Balance: ${money(balance)}", onClick = { selectedLoan = loan })
                     }
                 }
             } else {
                 val loan = selectedLoan!!
-                Text(text = "Outstanding balance: ${money(loan.outstandingBalance)}", style = MaterialTheme.typography.titleMedium)
+                val balance = viewModel.outstandingBalance(loan)
+                Text(text = "Outstanding balance: ${money(balance)}", style = MaterialTheme.typography.titleMedium)
                 AppTextField(value = amount, onValueChange = { amount = it }, label = "Repayment Amount")
                 AppDateField(value = date, onValueChange = { date = it }, label = "Date")
 
@@ -325,8 +329,8 @@ fun RecordRepaymentScreen(viewModel: AppViewModel, onBack: () -> Unit, onDone: (
                     when {
                         amountValue == null -> errorMessage = "Enter the amount as a number"
                         amountValue <= 0.0 -> errorMessage = "Amount must be greater than zero"
-                        amountValue > loan.outstandingBalance + 0.001 ->
-                            errorMessage = "Amount is more than the outstanding balance (${money(loan.outstandingBalance)})"
+                        amountValue > balance + 0.001 ->
+                            errorMessage = "Amount is more than the outstanding balance (${money(balance)})"
                         !isValidDate(date) -> errorMessage = "Pick a valid date"
                         else -> {
                             errorMessage = ""

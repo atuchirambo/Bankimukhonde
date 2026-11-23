@@ -3,6 +3,7 @@ package com.example.bankimukhonde
 import com.example.bankimukhonde.model.Loan
 import com.example.bankimukhonde.model.Repayment
 import com.example.bankimukhonde.model.SavingsEntry
+import com.example.bankimukhonde.model.outstandingBalance
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -43,7 +44,7 @@ class FinancialCalculationTest {
             dateIssued = "2026-01-01"
         )
         // 50,000 + 20% interest = 60,000
-        assertEquals(60000.0, initialLoan.outstandingBalance, 0.001)
+        assertEquals(60000.0, initialLoan.outstandingBalance(emptyList()), 0.001)
 
         val repayments = listOf(
             Repayment(loanId = "l1", amount = 20000.0, date = "2026-01-15"),
@@ -51,7 +52,7 @@ class FinancialCalculationTest {
         )
 
         val totalRepaid = repayments.sumOf { it.amount }
-        val finalBalance = (initialLoan.outstandingBalance - totalRepaid).coerceAtLeast(0.0)
+        val finalBalance = initialLoan.outstandingBalance(repayments)
 
         assertEquals(45000.0, totalRepaid, 0.001)
         assertEquals(15000.0, finalBalance, 0.001)
@@ -67,8 +68,8 @@ class FinancialCalculationTest {
             dateIssued = "2026-01-01"
         )
         // 10,000 + 10% = 11,000 balance
-        val repaymentAmount = 15000.0
-        val remainingBalance = (initialLoan.outstandingBalance - repaymentAmount).coerceAtLeast(0.0)
+        val repayments = listOf(Repayment(loanId = "l1", amount = 15000.0, date = "2026-01-15"))
+        val remainingBalance = initialLoan.outstandingBalance(repayments)
 
         assertEquals(0.0, remainingBalance, 0.001)
     }

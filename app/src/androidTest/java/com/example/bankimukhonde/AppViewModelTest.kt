@@ -27,12 +27,10 @@ class AppViewModelTest {
 
     @Test
     fun testAdminWorkflow() = runBlocking {
-        // Wait for initial admin check
         while (!viewModel.adminLoaded) {
             delay(50)
         }
 
-        // Setup new admin
         viewModel.setupAdmin("admin_user", "pass123")
         delay(200)
 
@@ -40,7 +38,6 @@ class AppViewModelTest {
         assertTrue(viewModel.checkLogin("admin_user", "pass123"))
         assertFalse(viewModel.checkLogin("admin_user", "wrong_pass"))
 
-        // Change password
         val changed = viewModel.changePassword("pass123", "new_pass456")
         assertTrue(changed)
         assertTrue(viewModel.checkLogin("admin_user", "new_pass456"))
@@ -86,21 +83,19 @@ class AppViewModelTest {
         assertNotNull(member)
 
         member?.let { m ->
-            // Issue loan of 100,000 at 10% interest -> 110,000 balance
             viewModel.issueLoan(m.id, 100000.0, 10.0, "2026-02-01")
             delay(200)
 
             val memberLoans = viewModel.loansFor(m.id)
             assertEquals(1, memberLoans.size)
             val loan = memberLoans[0]
-            assertEquals(110000.0, loan.outstandingBalance, 0.001)
+            assertEquals(110000.0, viewModel.outstandingBalance(loan), 0.001)
 
-            // Record repayment of 40,000
             viewModel.recordRepayment(loan.id, 40000.0, "2026-02-10")
             delay(200)
 
             val updatedLoan = viewModel.loansFor(m.id)[0]
-            assertEquals(70000.0, updatedLoan.outstandingBalance, 0.001)
+            assertEquals(70000.0, viewModel.outstandingBalance(updatedLoan), 0.001)
 
             val repayments = viewModel.repaymentsFor(loan.id)
             assertEquals(1, repayments.size)

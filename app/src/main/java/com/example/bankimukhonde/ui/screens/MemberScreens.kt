@@ -233,7 +233,7 @@ fun MemberDetailScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                 }
                 1 -> {
                     val loans = viewModel.loansFor(member.id)
-                    LazyColumn { items(loans) { l -> AvatarListItem(title = "${money(l.amount)} (${plain(l.interestRatePercent)}%)", subtitle = "Balance: ${money(l.outstandingBalance)}", onClick = {}) } }
+                    LazyColumn { items(loans) { l -> AvatarListItem(title = "${money(l.amount)} (${plain(l.interestRatePercent)}%)", subtitle = "Balance: ${money(viewModel.outstandingBalance(l))}", onClick = {}) } }
                 }
                 2 -> {
                     val repayments = viewModel.repaymentsForMember(member.id)

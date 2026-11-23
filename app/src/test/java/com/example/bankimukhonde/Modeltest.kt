@@ -3,38 +3,34 @@ package com.example.bankimukhonde
 import com.example.bankimukhonde.model.AdminAccount
 import com.example.bankimukhonde.model.Loan
 import com.example.bankimukhonde.model.Member
+import com.example.bankimukhonde.model.Repayment
+import com.example.bankimukhonde.model.monthlyInstalment
+import com.example.bankimukhonde.model.outstandingBalance
+import com.example.bankimukhonde.model.totalOwed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
-import org.junit.Test
-import com.example.bankimukhonde.model.monthlyInstalment
-import com.example.bankimukhonde.model.totalOwed
 import org.junit.Assert.assertNull
+import org.junit.Test
 
 class ModelTest {
-
-
 
     @Test
     fun loan_startingBalance_includesInterest() {
         val loan = Loan(memberId = "m1", amount = 1000.0, interestRatePercent = 10.0, dateIssued = "2026-10-01")
-        assertEquals(1100.0, loan.outstandingBalance, 0.001)
+        assertEquals(1100.0, loan.outstandingBalance(emptyList()), 0.001)
     }
 
     @Test
     fun loan_withZeroInterest_balanceEqualsAmount() {
         val loan = Loan(memberId = "m1", amount = 500.0, interestRatePercent = 0.0, dateIssued = "2026-10-01")
-        assertEquals(500.0, loan.outstandingBalance, 0.001)
+        assertEquals(500.0, loan.outstandingBalance(emptyList()), 0.001)
     }
 
     @Test
-    fun loan_copy_changesOnlyTheBalance() {
+    fun loan_repaymentReducesOutstandingBalance() {
         val loan = Loan(memberId = "m1", amount = 1000.0, interestRatePercent = 10.0, dateIssued = "2026-10-01")
-        val afterRepayment = loan.copy(outstandingBalance = 600.0)
-
-        assertEquals(600.0, afterRepayment.outstandingBalance, 0.001)
-        assertEquals(loan.id, afterRepayment.id)
-        assertEquals(loan.amount, afterRepayment.amount, 0.001)
-        assertEquals(loan.memberId, afterRepayment.memberId)
+        val repayments = listOf(Repayment(loanId = loan.id, amount = 500.0, date = "2026-10-05"))
+        assertEquals(600.0, loan.outstandingBalance(repayments), 0.001)
     }
 
     @Test

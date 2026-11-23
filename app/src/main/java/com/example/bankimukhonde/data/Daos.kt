@@ -24,8 +24,17 @@ interface MemberDao {
     @Delete
     suspend fun delete(member: Member)
 
-    @Query("SELECT * FROM Member ORDER BY name ASC")
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(member: Member)
+
+    @Query("SELECT * FROM Member WHERE isDeleted = 0 ORDER BY name ASC")
     fun getAll(): Flow<List<Member>>
+
+    @Query("SELECT * FROM Member WHERE dirty = 1")
+    suspend fun getDirty(): List<Member>
+
+    @Query("SELECT * FROM Member WHERE id = :id")
+    suspend fun getById(id: String): Member?
 }
 
 @Dao
@@ -39,8 +48,17 @@ interface SavingsDao {
     @Delete
     suspend fun delete(entry: SavingsEntry)
 
-    @Query("SELECT * FROM SavingsEntry ORDER BY date DESC")
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entry: SavingsEntry)
+
+    @Query("SELECT * FROM SavingsEntry WHERE isDeleted = 0 ORDER BY date DESC")
     fun getAll(): Flow<List<SavingsEntry>>
+
+    @Query("SELECT * FROM SavingsEntry WHERE dirty = 1")
+    suspend fun getDirty(): List<SavingsEntry>
+
+    @Query("SELECT * FROM SavingsEntry WHERE id = :id")
+    suspend fun getById(id: String): SavingsEntry?
 }
 
 @Dao
@@ -54,8 +72,17 @@ interface LoanDao {
     @Delete
     suspend fun delete(loan: Loan)
 
-    @Query("SELECT * FROM Loan ORDER BY dateIssued DESC")
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(loan: Loan)
+
+    @Query("SELECT * FROM Loan WHERE isDeleted = 0 ORDER BY dateIssued DESC")
     fun getAll(): Flow<List<Loan>>
+
+    @Query("SELECT * FROM Loan WHERE dirty = 1")
+    suspend fun getDirty(): List<Loan>
+
+    @Query("SELECT * FROM Loan WHERE id = :id")
+    suspend fun getById(id: String): Loan?
 }
 
 @Dao
@@ -63,20 +90,36 @@ interface RepaymentDao {
     @Insert
     suspend fun insert(repayment: Repayment)
 
+    @Update
+    suspend fun update(repayment: Repayment)
+
     @Delete
     suspend fun delete(repayment: Repayment)
 
-    @Query("SELECT * FROM Repayment ORDER BY date DESC")
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(repayment: Repayment)
+
+    @Query("SELECT * FROM Repayment WHERE isDeleted = 0 ORDER BY date DESC")
     fun getAll(): Flow<List<Repayment>>
+
+    @Query("SELECT * FROM Repayment WHERE dirty = 1")
+    suspend fun getDirty(): List<Repayment>
+
+    @Query("SELECT * FROM Repayment WHERE id = :id")
+    suspend fun getById(id: String): Repayment?
 }
 
 @Dao
 interface AdminDao {
-    // REPLACE means: if an account already exists (id 0), overwrite it.
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(account: AdminAccount)
 
-    // Returns null if no administrator has been set up yet.
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(account: AdminAccount)
+
     @Query("SELECT * FROM AdminAccount WHERE id = 0")
     suspend fun getAccount(): AdminAccount?
+
+    @Query("SELECT * FROM AdminAccount WHERE dirty = 1")
+    suspend fun getDirty(): List<AdminAccount>
 }

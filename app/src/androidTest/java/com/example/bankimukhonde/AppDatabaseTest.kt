@@ -15,6 +15,7 @@ import com.example.bankimukhonde.model.Loan
 import com.example.bankimukhonde.model.Member
 import com.example.bankimukhonde.model.Repayment
 import com.example.bankimukhonde.model.SavingsEntry
+import com.example.bankimukhonde.model.outstandingBalance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -65,7 +66,6 @@ class AppDatabaseTest {
 
         val members = memberDao.getAll().first()
         assertEquals(2, members.size)
-        // Should be ordered alphabetically by name
         assertEquals("Alice Phiri", members[0].name)
         assertEquals("Grace Banda", members[1].name)
     }
@@ -115,14 +115,14 @@ class AppDatabaseTest {
         loanDao.insert(loan)
 
         val issuedLoan = loanDao.getAll().first().first()
-        assertEquals(55000.0, issuedLoan.outstandingBalance, 0.001)
+        val initialRepayments = repaymentDao.getAll().first()
+        assertEquals(55000.0, issuedLoan.outstandingBalance(initialRepayments), 0.001)
 
-        val repaymentAmount = 20000.0
-        val updatedLoan = issuedLoan.copy(outstandingBalance = issuedLoan.outstandingBalance - repaymentAmount)
-        loanDao.update(updatedLoan)
+        val repayment = Repayment(loanId = issuedLoan.id, amount = 20000.0, date = "2026-02-10")
+        repaymentDao.insert(repayment)
 
-        val afterRepayment = loanDao.getAll().first().first()
-        assertEquals(35000.0, afterRepayment.outstandingBalance, 0.001)
+        val activeRepayments = repaymentDao.getAll().first()
+        assertEquals(35000.0, issuedLoan.outstandingBalance(activeRepayments), 0.001)
     }
 
     @Test
@@ -147,7 +147,6 @@ class AppDatabaseTest {
         assertEquals("admin", saved?.username)
         assertEquals("password123", saved?.password)
 
-        // Overwrite admin account with new credentials
         val newAdmin = AdminAccount(username = "chairperson", password = "newpassword")
         adminDao.save(newAdmin)
 

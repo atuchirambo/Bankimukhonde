@@ -37,7 +37,7 @@ fun DashboardScreen(viewModel: AppViewModel, onNavigate: (String) -> Unit) {
         else -> "Good evening,"
     }
     val memberCount = viewModel.members.size
-    val outstanding = viewModel.loans.sumOf { it.outstandingBalance }
+    val outstanding = viewModel.loans.sumOf { viewModel.outstandingBalance(it) }
 
     AppScaffold(title = "BANKIMUKHONDE") { innerPadding: PaddingValues ->
         Column(

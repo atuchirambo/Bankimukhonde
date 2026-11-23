@@ -8,6 +8,7 @@ import com.example.bankimukhonde.model.Loan
 import com.example.bankimukhonde.model.Member
 import com.example.bankimukhonde.model.Repayment
 import com.example.bankimukhonde.model.SavingsEntry
+import com.example.bankimukhonde.model.outstandingBalance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -110,7 +111,7 @@ object BackupManager {
             sb.append("Savings,${esc(names[it.memberId] ?: "Unknown")},${it.date},${plain(it.amount)},\n")
         }
         loans.forEach {
-            val details = "Interest ${plain(it.interestRatePercent)}%, term ${it.termMonths} months, balance ${plain(it.outstandingBalance)}"
+            val details = "Interest ${plain(it.interestRatePercent)}%, term ${it.termMonths} months, balance ${plain(it.outstandingBalance(repayments))}"
             sb.append("Loan,${esc(names[it.memberId] ?: "Unknown")},${it.dateIssued},${plain(it.amount)},${esc(details)}\n")
         }
         repayments.forEach {

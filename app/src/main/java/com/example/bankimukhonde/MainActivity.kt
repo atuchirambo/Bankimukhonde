@@ -48,11 +48,14 @@ import com.example.bankimukhonde.ui.screens.ChangePasswordScreen
 import com.example.bankimukhonde.ui.screens.SplashScreen
 import androidx.compose.runtime.remember
 
+import com.example.bankimukhonde.data.remote.SyncWorker
 import com.example.bankimukhonde.ui.theme.BankimukhondeTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SyncWorker.schedulePeriodicSync(applicationContext)
+        SyncWorker.syncNow(applicationContext)
         setContent {
             BankimukhondeTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {

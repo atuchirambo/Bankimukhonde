@@ -30,10 +30,9 @@ class SetupAccountScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithText("BANKIMUKHONDE").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Create Administrator Account").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Create or Join VSL Group").assertIsDisplayed()
         composeTestRule.onNodeWithText("Username").assertIsDisplayed()
         composeTestRule.onNodeWithText("Password").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Setup Account").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Create Group & Account").assertIsDisplayed()
     }
 }

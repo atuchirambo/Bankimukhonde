@@ -11,12 +11,14 @@ import com.example.bankimukhonde.model.Loan
 import com.example.bankimukhonde.model.Member
 import com.example.bankimukhonde.model.Repayment
 import com.example.bankimukhonde.model.SavingsEntry
+import com.example.bankimukhonde.model.outstandingBalance
+import com.example.bankimukhonde.data.remote.SyncWorker
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.launch
+import java.util.UUID
 
-/**
- * Now backed by the Room database. AndroidViewModel (instead of ViewModel)
- * gives us the Application, which Room needs to open the database file.
- */
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getInstance(application)
@@ -26,8 +28,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val repaymentDao = db.repaymentDao()
     private val adminDao = db.adminDao()
 
-    // These look like plain lists to the screens, but they are refreshed
-    // automatically from the database whenever its data changes.
     var members by mutableStateOf<List<Member>>(emptyList())
         private set
     var savingsEntries by mutableStateOf<List<SavingsEntry>>(emptyList())
@@ -39,10 +39,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     var selectedMember: Member? by mutableStateOf(null)
 
-    // --- Administrator account (stored in the database) ---
-    private var adminAccount: AdminAccount? by mutableStateOf(null)
+    var adminAccount: AdminAccount? by mutableStateOf(null)
+        private set
 
-    // False until we have finished checking the database for an admin account.
     var adminLoaded by mutableStateOf(false)
         private set
 
@@ -52,58 +51,180 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         get() = adminAccount?.username ?: "Administrator"
 
     init {
-        // Each launch starts a live feed: when the table changes, the list updates.
         viewModelScope.launch { memberDao.getAll().collect { members = it } }
         viewModelScope.launch { savingsDao.getAll().collect { savingsEntries = it } }
         viewModelScope.launch { loanDao.getAll().collect { loans = it } }
         viewModelScope.launch { repaymentDao.getAll().collect { repayments = it } }
 
-        // One-time check: has an administrator been set up on this device?
         viewModelScope.launch {
             adminAccount = adminDao.getAccount()
             adminLoaded = true
         }
     }
 
+    private fun now(): Long = System.currentTimeMillis()
+
+    fun generateInviteCode(): String {
+        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        return (1..6).map { chars.random() }.joinToString("")
+    }
+
     fun setupAdmin(username: String, password: String) {
-        val account = AdminAccount(username = username.trim(), password = PasswordHasher.hash(password.trim()))
-        adminAccount = account            // set immediately so login works right away
+        val account = AdminAccount(
+            username = username.trim(),
+            password = PasswordHasher.hash(password.trim()),
+            dirty = true,
+            updatedAt = now()
+        )
+        adminAccount = account
         viewModelScope.launch { adminDao.save(account) }
+    }
+
+    fun setupAdminGroup(
+        username: String,
+        email: String,
+        password: String,
+        role: String,
+        groupName: String,
+        inviteCode: String,
+        isCreatingGroup: Boolean,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        val cleanEmail = if (email.contains("@")) email.trim() else "${username.trim()}@bankimukhonde.app"
+        val hashedPassword = PasswordHasher.hash(password.trim())
+        val actualGroupId = if (isCreatingGroup) "group_${UUID.randomUUID().toString().take(8)}" else "group_${inviteCode.trim().uppercase()}"
+        val actualInviteCode = if (isCreatingGroup && inviteCode.isBlank()) generateInviteCode() else inviteCode.trim().uppercase()
+
+        val account = AdminAccount(
+            username = username.trim(),
+            password = hashedPassword,
+            email = cleanEmail,
+            role = role,
+            groupName = groupName.trim(),
+            inviteCode = actualInviteCode,
+            groupId = actualGroupId,
+            dirty = true,
+            updatedAt = now()
+        )
+
+        adminAccount = account
+        viewModelScope.launch {
+            adminDao.save(account)
+        }
+
+        try {
+            FirebaseAuth.getInstance().createUserWithEmailAndPassword(cleanEmail, password.trim())
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val uid = task.result?.user?.uid ?: ""
+                        val groupData = mapOf(
+                            "groupId" to actualGroupId,
+                            "groupName" to groupName,
+                            "inviteCode" to actualInviteCode,
+                            "updatedAt" to now()
+                        )
+                        FirebaseFirestore.getInstance().collection("groups").document(actualGroupId)
+                            .set(groupData, SetOptions.merge())
+
+                        val userData = mapOf(
+                            "uid" to uid,
+                            "username" to username,
+                            "email" to cleanEmail,
+                            "role" to role,
+                            "groupId" to actualGroupId,
+                            "updatedAt" to now()
+                        )
+                        FirebaseFirestore.getInstance().collection("users").document(uid)
+                            .set(userData, SetOptions.merge())
+
+                        onResult(true, "Account created successfully!")
+                    } else {
+                        onResult(true, "Created locally for offline use.")
+                    }
+                }
+        } catch (e: Exception) {
+            onResult(true, "Created locally for offline use.")
+        }
     }
 
     fun checkLogin(username: String, password: String): Boolean {
         val account = adminAccount ?: return false
-        if (!username.trim().equals(account.username, ignoreCase = true)) return false
-        if (!PasswordHasher.verify(password.trim(), account.password)) return false
-
-        // Upgrade an old plain-text password to a hash on the first successful login
-        if (!PasswordHasher.isHashed(account.password)) {
-            val upgraded = account.copy(password = PasswordHasher.hash(password.trim()))
-            adminAccount = upgraded
-            viewModelScope.launch { adminDao.save(upgraded) }
+        val entered = username.trim()
+        if (!entered.equals(account.username, ignoreCase = true) && !entered.equals(account.email, ignoreCase = true)) {
+            return false
         }
-        return true
+
+        val isLocalValid = PasswordHasher.verify(password.trim(), account.password)
+
+        try {
+            val emailToUse = if (account.email.isNotBlank()) account.email else "${account.username}@bankimukhonde.app"
+            FirebaseAuth.getInstance().signInWithEmailAndPassword(emailToUse, password.trim())
+        } catch (e: Exception) {
+            // Offline fallback
+        }
+
+        return isLocalValid
     }
 
     fun changePassword(currentPassword: String, newPassword: String): Boolean {
         val account = adminAccount ?: return false
         if (!PasswordHasher.verify(currentPassword.trim(), account.password)) return false
 
-        val updated = account.copy(password = PasswordHasher.hash(newPassword.trim()))
+        val updated = account.copy(
+            password = PasswordHasher.hash(newPassword.trim()),
+            dirty = true,
+            updatedAt = now()
+        )
         adminAccount = updated
         viewModelScope.launch { adminDao.save(updated) }
+
+        try {
+            val user = FirebaseAuth.getInstance().currentUser
+            user?.updatePassword(newPassword.trim())
+        } catch (e: Exception) {
+            // Offline fallback
+        }
+
         return true
+    }
+
+    private fun triggerSync() {
+        try {
+            SyncWorker.syncNow(getApplication())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun addMember(name: String, phone: String, dateJoined: String) {
         viewModelScope.launch {
-            memberDao.insert(Member(name = name, phone = phone, dateJoined = dateJoined))
+            memberDao.insert(
+                Member(
+                    name = name,
+                    phone = phone,
+                    dateJoined = dateJoined,
+                    groupId = adminAccount?.groupId ?: "",
+                    dirty = true,
+                    updatedAt = now()
+                )
+            )
+            triggerSync()
         }
     }
 
     fun recordSavings(memberId: String, amount: Double, date: String) {
         viewModelScope.launch {
-            savingsDao.insert(SavingsEntry(memberId = memberId, amount = amount, date = date))
+            savingsDao.insert(
+                SavingsEntry(
+                    memberId = memberId,
+                    amount = amount,
+                    date = date,
+                    groupId = adminAccount?.groupId ?: "",
+                    dirty = true,
+                    updatedAt = now()
+                )
+            )
+            triggerSync()
         }
     }
 
@@ -115,54 +236,80 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     amount = amount,
                     interestRatePercent = interestRatePercent,
                     dateIssued = date,
-                    termMonths = termMonths
+                    termMonths = termMonths,
+                    groupId = adminAccount?.groupId ?: "",
+                    dirty = true,
+                    updatedAt = now()
                 )
             )
+            triggerSync()
         }
     }
 
     fun recordRepayment(loanId: String, amount: Double, date: String) {
         viewModelScope.launch {
-            val loan = loans.find { it.id == loanId } ?: return@launch
-            loanDao.update(
-                loan.copy(outstandingBalance = (loan.outstandingBalance - amount).coerceAtLeast(0.0))
+            repaymentDao.insert(
+                Repayment(
+                    loanId = loanId,
+                    amount = amount,
+                    date = date,
+                    groupId = adminAccount?.groupId ?: "",
+                    dirty = true,
+                    updatedAt = now()
+                )
             )
-            repaymentDao.insert(Repayment(loanId = loanId, amount = amount, date = date))
+            triggerSync()
         }
     }
-    // ---------- Edit and delete (FR9) ----------
 
     fun updateMember(member: Member, name: String, phone: String, dateJoined: String) {
-        val updated = member.copy(name = name, phone = phone, dateJoined = dateJoined)
+        val updated = member.copy(
+            name = name,
+            phone = phone,
+            dateJoined = dateJoined,
+            dirty = true,
+            updatedAt = now()
+        )
         if (selectedMember?.id == member.id) selectedMember = updated
-        viewModelScope.launch { memberDao.update(updated) }
+        viewModelScope.launch {
+            memberDao.update(updated)
+            triggerSync()
+        }
     }
 
-    /** Deletes the member and everything that belongs to them. */
     fun deleteMember(member: Member) {
         selectedMember = null
+        val timestamp = now()
         viewModelScope.launch {
             loans.filter { it.memberId == member.id }.forEach { loan ->
-                repayments.filter { it.loanId == loan.id }.forEach { repaymentDao.delete(it) }
-                loanDao.delete(loan)
+                repayments.filter { it.loanId == loan.id }.forEach {
+                    repaymentDao.update(it.copy(isDeleted = true, dirty = true, updatedAt = timestamp))
+                }
+                loanDao.update(loan.copy(isDeleted = true, dirty = true, updatedAt = timestamp))
             }
-            savingsEntries.filter { it.memberId == member.id }.forEach { savingsDao.delete(it) }
-            memberDao.delete(member)
+            savingsEntries.filter { it.memberId == member.id }.forEach {
+                savingsDao.update(it.copy(isDeleted = true, dirty = true, updatedAt = timestamp))
+            }
+            memberDao.update(member.copy(isDeleted = true, dirty = true, updatedAt = timestamp))
+            triggerSync()
         }
     }
 
     fun updateSavings(entry: SavingsEntry, amount: Double, date: String) {
-        viewModelScope.launch { savingsDao.update(entry.copy(amount = amount, date = date)) }
+        viewModelScope.launch {
+            savingsDao.update(entry.copy(amount = amount, date = date, dirty = true, updatedAt = now()))
+            triggerSync()
+        }
     }
 
     fun deleteSavings(entry: SavingsEntry) {
-        viewModelScope.launch { savingsDao.delete(entry) }
+        viewModelScope.launch {
+            savingsDao.update(entry.copy(isDeleted = true, dirty = true, updatedAt = now()))
+            triggerSync()
+        }
     }
 
-    /** Recalculates the balance: new amount + interest, minus what was already repaid. */
     fun updateLoan(loan: Loan, amount: Double, interestRatePercent: Double, date: String, termMonths: Int) {
-        val alreadyRepaid = repaymentsFor(loan.id).sumOf { it.amount }
-        val newTotal = amount + (amount * interestRatePercent / 100)
         viewModelScope.launch {
             loanDao.update(
                 loan.copy(
@@ -170,35 +317,33 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     interestRatePercent = interestRatePercent,
                     dateIssued = date,
                     termMonths = termMonths,
-                    outstandingBalance = (newTotal - alreadyRepaid).coerceAtLeast(0.0)
+                    dirty = true,
+                    updatedAt = now()
                 )
             )
+            triggerSync()
         }
     }
 
-    /** Deletes the loan and all of its repayments. */
     fun deleteLoan(loan: Loan) {
+        val timestamp = now()
         viewModelScope.launch {
-            repayments.filter { it.loanId == loan.id }.forEach { repaymentDao.delete(it) }
-            loanDao.delete(loan)
+            repayments.filter { it.loanId == loan.id }.forEach {
+                repaymentDao.update(it.copy(isDeleted = true, dirty = true, updatedAt = timestamp))
+            }
+            loanDao.update(loan.copy(isDeleted = true, dirty = true, updatedAt = timestamp))
+            triggerSync()
         }
     }
 
-    /** Deletes a repayment and puts its amount back onto the loan balance. */
     fun deleteRepayment(repayment: Repayment) {
         viewModelScope.launch {
-            val loan = loans.find { it.id == repayment.loanId }
-            if (loan != null) {
-                val totalOwed = loan.amount + (loan.amount * loan.interestRatePercent / 100)
-                loanDao.update(
-                    loan.copy(
-                        outstandingBalance = (loan.outstandingBalance + repayment.amount).coerceAtMost(totalOwed)
-                    )
-                )
-            }
-            repaymentDao.delete(repayment)
+            repaymentDao.update(repayment.copy(isDeleted = true, dirty = true, updatedAt = now()))
+            triggerSync()
         }
     }
+
+    fun outstandingBalance(loan: Loan): Double = loan.outstandingBalance(repayments)
 
     fun totalSavings(): Double = savingsEntries.sumOf { it.amount }
     fun totalLoansIssued(): Double = loans.sumOf { it.amount }
